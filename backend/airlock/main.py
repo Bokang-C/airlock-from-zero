@@ -40,6 +40,31 @@ async def throttle(request: Request, group: str, limit: int):
 def health():
     return {"ok":True, "service":"airlock"}
 
+@app.get("/api/admin/browser-check", include_in_schema=False)
+async def browser_check(request: Request):
+    import secrets
+
+    expected = os.environ.get("AIRLOCK_DIAG_TOKEN", "")
+    supplied = request.headers.get("x-airlock-diag-token", "")
+
+    if len(expected) < 32 or not secrets.compare_digest(supplied, expected):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    await throttle(request, "browser_check", 3)
+
+    try:
+        report, _ = await asyncio.wait_for(
+            scan_html("<!doctype html><html><body>Browser test</body></html>"),
+            timeout=config.SCAN_TIMEOUT_SECONDS,
+        )
+        return {"ok": True, "verdict": report.verdict}
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error_type": type(exc).__name__,
+            "detail": str(exc)[:3000],
+        }
+
 
 @app.get("/api/status")
 def status():
