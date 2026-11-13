@@ -1,0 +1,20 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+frontend/dist/
+coverage/
+*.log
+.DS_Store
+*.csv
+!frontend/public/*.csv
+
+*.tsbuildinfo
