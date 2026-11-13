@@ -70,8 +70,12 @@ async def scan(payload: ScanRequest, request: Request):
     except asyncio.TimeoutError as exc:
         raise HTTPException(status_code=504, detail="Browser analysis timed out") from exc
     except Exception as exc:
-        # Keep internal stack traces out of public responses.
-        raise HTTPException(status_code=503, detail="Browser analysis unavailable; check Chromium installation and sandbox setup") from exc
+        import logging
+        logging.exception("Airlock Chromium scan failed")
+        raise HTTPException(
+            status_code=503,
+            detail="Browser analysis unavailable; check Chromium installation and sandbox setup"
+        ) from exc
     return {**result.model_dump(), "screenshot_base64":screenshot}
 
 
