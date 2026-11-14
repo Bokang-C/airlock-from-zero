@@ -15,8 +15,12 @@ from .fetch import fetch_public_html, UnsafeURL
 from .pipeline import scan_html
 from .scenarios import SCENARIOS, scenario_list
 from .agent import demo_run
+# AIRLOCK_V2: public replay, independent fake-tool policy, global browser budget
+from .studio import router as studio_router
+from .browser_budget import consume as consume_browser_budget
 
 app = FastAPI(title="Airlock API", description="Visibility-aware prompt-injection research prototype", version="0.1.0")
+app.include_router(studio_router)
 app.add_middleware(CORSMiddleware, allow_origins=config.ALLOWED_ORIGINS, allow_methods=["GET","POST"], allow_headers=["Content-Type"])
 _rate: dict[str, deque] = defaultdict(deque)
 _rate_lock = asyncio.Lock()
@@ -81,6 +85,7 @@ def scenarios():
 @app.post("/api/scan")
 async def scan(payload: ScanRequest, request: Request):
     await throttle(request,"scan",24)
+    await consume_browser_budget()
     if payload.url:
         if not config.ALLOW_URL_SCAN:
             raise HTTPException(status_code=403, detail="URL scanning is disabled. Paste HTML instead, or opt in locally with AIRLOCK_ENABLE_URL_SCAN=1")

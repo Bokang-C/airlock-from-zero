@@ -22,6 +22,8 @@ async def scan_html(content: str) -> tuple[ScanResult, str]:
                                         severity="high", excerpt=seg.text[:190]))
         elif seg.visibility == "nonvisual":
             if sig:
+                # AIRLOCK_V2: suspicious attributes must not enter agent context.
+                sanitized = True
                 escalate = True
                 findings.append(Finding(reason="Instruction-like accessibility or attribute content (review)",
                                         severity="warning", excerpt=seg.text[:190]))
@@ -44,7 +46,8 @@ async def scan_html(content: str) -> tuple[ScanResult, str]:
         reason = "Visible instruction-like content was identified for review; it was not automatically blocked."
     else:
         reason = "No hidden instruction indicators were found in the rendered page."
-    clean_segments = [s.text for s in segments if s.visibility != "hidden"]
+    clean_segments = [s.text for s in segments if s.visibility != "hidden"
+                      and not (s.visibility == "nonvisual" and s.suspicious)]
     return ScanResult(
         verdict=verdict, reason=reason, escalate=escalate,
         findings=findings[:40], segments=segments,

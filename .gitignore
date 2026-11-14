@@ -18,3 +18,7 @@ coverage/
 !frontend/public/*.csv
 
 *.tsbuildinfo
+
+# Airlock v2 local patch assets and installation backups
+airlock_v2_backups/
+airlock_v2/

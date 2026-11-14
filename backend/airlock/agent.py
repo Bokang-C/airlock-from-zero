@@ -5,6 +5,8 @@ from urllib.parse import urlparse
 import httpx
 from . import config
 from .models import ScanResult
+# AIRLOCK_V2: enforce the SAME trusted-intent policy as Policy Lab
+from .trust_policy import compile_trusted_intent, authorize_fake_tool
 
 TOOLS = [{
     "type": "function",
@@ -65,6 +67,7 @@ async def demo_run(task: str, scan: ScanResult, firewall_on: bool) -> dict:
     first = await call_model(messages)
     tool_calls = first.get("tool_calls") or []
     outbox = []
+    trusted_intent = compile_trusted_intent(task)
     attempts = 0
     denied = 0
     if tool_calls:
@@ -77,7 +80,8 @@ async def demo_run(task: str, scan: ScanResult, firewall_on: bool) -> dict:
                 args = {}
             target = str(args.get("to", ""))[:200]
             attempts += 1
-            allowed = name == "send_email" and (not firewall_on or permitted_email(task, target))
+            decision = authorize_fake_tool(trusted_intent, str(name), args, used_actions=len(outbox))
+            allowed = name == "send_email" and (not firewall_on or decision.allowed)
             if allowed:
                 # A harmless in-memory outbox. There is NO real email/SMTP code.
                 outbox.append({"to": target, "subject": str(args.get("subject", ""))[:200],
@@ -86,11 +90,14 @@ async def demo_run(task: str, scan: ScanResult, firewall_on: bool) -> dict:
             else:
                 denied += 1
                 outcome = "ACTION DENIED BY GATE" if firewall_on else "UNKNOWN TOOL DENIED"
-            trace.append({"event":"tool_call", "tool": name, "to": target, "outcome":outcome})
+            trace.append({"event":"tool_call", "tool": name, "to": target, "outcome":outcome,
+                          "policy_code": decision.code if firewall_on else "FIREWALL_OFF"})
             messages.append({"role":"tool", "tool_call_id":call["id"], "content":outcome})
         # Avoid sending more messages to the real model after it has taken action.
         final_text = first.get("content") or ("Tool calls are shown in the trace below.")
     else:
         final_text = first.get("content") or "The agent returned no text."
+    unauthorized_executed = any(not authorize_fake_tool(trusted_intent, "send_email", m, used_actions=i).allowed
+                                for i, m in enumerate(outbox))
     return {"answer":final_text, "trace":trace, "outbox":outbox, "attempts":attempts,
-            "denied":denied, "hijacked":bool(outbox), "model":config.OPENAI_MODEL}
+            "denied":denied, "hijacked":unauthorized_executed, "model":config.OPENAI_MODEL}
