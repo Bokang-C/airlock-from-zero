@@ -7,7 +7,10 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 MAX_HTML_BYTES = 750_000
 MAX_SEGMENTS = 500
-SCAN_TIMEOUT_SECONDS = 10
+BROWSERLESS_TOKEN = os.environ.get("BROWSERLESS_TOKEN", "").strip()
+SCAN_TIMEOUT_SECONDS = int(os.environ.get(
+    "AIRLOCK_SCAN_TIMEOUT_SECONDS", "30" if BROWSERLESS_TOKEN else "10"
+))
 ALLOW_URL_SCAN = env_bool("AIRLOCK_ENABLE_URL_SCAN", False)
 # Setting false is ONLY suitable for controlled local demonstrations, not for public web hosting.
 CHROMIUM_SANDBOX = not env_bool("AIRLOCK_DEV_NO_BROWSER_SANDBOX", False)
