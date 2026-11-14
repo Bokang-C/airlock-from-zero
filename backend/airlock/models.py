@@ -20,6 +20,9 @@ class Segment(BaseModel):
     suspicious: bool = False
     signals: list[str] = []
     source: str = "dom"
+    # AIRLOCK_V3_FORENSICS: optional DOM-origin evidence; older clients remain compatible.
+    dom_path: str | None = None
+    bbox: dict[str, float] | None = None
 
 
 class Finding(BaseModel):

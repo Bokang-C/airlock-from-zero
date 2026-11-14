@@ -1,5 +1,39 @@
 () => {
   const segments = [];
+
+  // AIRLOCK_V3_FORENSICS: approximate screenshot evidence for each extracted segment.
+  // These are DOM geometry observations, not proof that text is perceptible.
+  function elementPath(element) {
+    if (!element || element.nodeType !== 1) return 'document';
+    const parts = [];
+    let current = element;
+    while (current && current.nodeType === 1 && parts.length < 8) {
+      const tag = current.tagName.toLowerCase();
+      const peers = current.parentElement ?
+        Array.from(current.parentElement.children).filter(e => e.tagName === current.tagName) : [current];
+      const ordinal = peers.indexOf(current) + 1;
+      parts.unshift(tag + ':nth-of-type(' + ordinal + ')');
+      current = current.parentElement;
+    }
+    return parts.join(' > ').slice(0, 300);
+  }
+  function viewportRect(target) {
+    try {
+      const rect = target.nodeType === 3 ? (() => {
+        const range = document.createRange();
+        range.selectNodeContents(target);
+        return range.getBoundingClientRect();
+      })() : target.getBoundingClientRect();
+      if (!rect || !Number.isFinite(rect.x) || !Number.isFinite(rect.y) ||
+          rect.width < 1 || rect.height < 1) return null;
+      const left = Math.max(0, rect.left), top = Math.max(0, rect.top);
+      const right = Math.min(innerWidth, rect.right), bottom = Math.min(innerHeight, rect.bottom);
+      if (right - left < 1 || bottom - top < 1) return null;
+      return {x: Math.round(left * 10) / 10, y: Math.round(top * 10) / 10,
+              width: Math.round((right-left) * 10) / 10,
+              height: Math.round((bottom-top) * 10) / 10};
+    } catch (_) { return null; }
+  }
   const LIMIT = 500;
   const forbidden = new Set(['SCRIPT','STYLE','NOSCRIPT','TEMPLATE','SVG']);
   const number = value => { const n = parseFloat(value); return Number.isFinite(n) ? n : 0; };
@@ -80,20 +114,23 @@
     const srOnly = parent && /(?:^|\s)(?:sr-only|visually-hidden|screen-reader-text)(?:\s|$)/i.test(parent.className || '');
     const accessibility = srOnly && reasons.every(x => ['clipped','zero-sized text','off-screen','tiny font'].includes(x));
     segments.push({text, visibility: reasons.length ? (accessibility ? 'nonvisual' : 'hidden') : 'visible',
-                   reasons: accessibility ? ['screen-reader-only', ...reasons] : reasons, source:'dom'});
+                   reasons: accessibility ? ['screen-reader-only', ...reasons] : reasons, source:'dom',
+                   bbox: viewportRect(node), dom_path: elementPath(parent)});
   }
   const elements = document.querySelectorAll('[alt],[title],[aria-label]');
   for (const el of elements) {
     if (segments.length >= LIMIT) break;
     for (const key of ['alt','title','aria-label']) {
       const text = (el.getAttribute(key) || '').trim().slice(0,1500);
-      if (text) segments.push({text, visibility:'nonvisual', reasons:[key + ' attribute'], source:'attribute'});
+      if (text) segments.push({text, visibility:'nonvisual', reasons:[key + ' attribute'], source:'attribute',
+                   bbox: viewportRect(el), dom_path: elementPath(el) + '@' + key});
     }
   }
   const comments = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_COMMENT);
   while ((node = comments.nextNode()) && segments.length < LIMIT) {
     const text = node.nodeValue.trim().slice(0,1500);
-    if (text) segments.push({text, visibility:'hidden', reasons:['HTML comment'], source:'comment'});
+    if (text) segments.push({text, visibility:'hidden', reasons:['HTML comment'], source:'comment', bbox:null,
+                   dom_path:elementPath(node.parentElement) + '#comment'});
   }
   return segments;
 }
