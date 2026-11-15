@@ -17,10 +17,14 @@ from .scenarios import SCENARIOS, scenario_list
 from .agent import demo_run
 # AIRLOCK_V2: public replay, independent fake-tool policy, global browser budget
 from .studio import router as studio_router
+# AIRLOCK_V4: recorded provenance and public LLM cost controls
+from .provenance import router as provenance_router
+from .llm_budget import consume as consume_llm_budget, inference_slot
 from .browser_budget import consume as consume_browser_budget
 
 app = FastAPI(title="Airlock API", description="Visibility-aware prompt-injection research prototype", version="0.1.0")
 app.include_router(studio_router)
+app.include_router(provenance_router)
 app.add_middleware(CORSMiddleware, allow_origins=config.ALLOWED_ORIGINS, allow_methods=["GET","POST"], allow_headers=["Content-Type"])
 _rate: dict[str, deque] = defaultdict(deque)
 _rate_lock = asyncio.Lock()
@@ -115,6 +119,12 @@ async def demo(payload: DemoRequest, request: Request):
     if payload.scenario_id not in SCENARIOS:
         raise HTTPException(status_code=404, detail="Unknown scenario")
     s = SCENARIOS[payload.scenario_id]
+    # Per-process safeguards for BOTH billable LLM calls and remote-browser sessions.
+    # A provider-side hard budget and shared counters remain necessary for multi-instance hosting.
+    if not config.OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="Live LLM demo is not configured")
+    await consume_llm_budget()
+    await consume_browser_budget()
     try:
         report, _ = await asyncio.wait_for(scan_html(s["html"]), timeout=config.SCAN_TIMEOUT_SECONDS)
     except Exception as exc:
@@ -122,7 +132,8 @@ async def demo(payload: DemoRequest, request: Request):
     if not config.OPENAI_API_KEY:
         raise HTTPException(status_code=503, detail="Set OPENAI_API_KEY in backend/.env to enable the real LLM agent")
     try:
-        result = await demo_run(s["task"], report, payload.firewall_on)
+        async with inference_slot():
+            result = await demo_run(s["task"], report, payload.firewall_on)
     except (httpx.HTTPError, KeyError, ValueError) as exc:
         raise HTTPException(status_code=502, detail=f"LLM API request failed: {str(exc)[:200]}") from exc
     return {**result, "scenario_id":payload.scenario_id,"firewall_on":payload.firewall_on,
