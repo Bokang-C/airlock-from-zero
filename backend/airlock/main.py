@@ -21,6 +21,8 @@ from .studio import router as studio_router
 from .provenance import router as provenance_router
 # AIRLOCK_V5_REDTEAM: scripted multi-step research, no external side effects
 from .redteam import router as redteam_router
+# AIRLOCK_V6_LIVE_RESEARCH: read-only real-model evidence, never public inference
+from .live_research import router as live_research_router
 from .llm_budget import consume as consume_llm_budget, inference_slot
 from .browser_budget import consume as consume_browser_budget
 
@@ -28,6 +30,7 @@ app = FastAPI(title="Airlock API", description="Visibility-aware prompt-injectio
 app.include_router(studio_router)
 app.include_router(provenance_router)
 app.include_router(redteam_router)
+app.include_router(live_research_router)
 app.add_middleware(CORSMiddleware, allow_origins=config.ALLOWED_ORIGINS, allow_methods=["GET","POST"], allow_headers=["Content-Type"])
 _rate: dict[str, deque] = defaultdict(deque)
 _rate_lock = asyncio.Lock()

@@ -22,3 +22,20 @@ coverage/
 # Airlock v2 local patch assets and installation backups
 airlock_v2_backups/
 airlock_v2/
+
+# Airlock v3 local installation artifacts
+airlock_v3_backups/
+airlock_v3_visual_forensics/
+
+# Airlock v4 local installer / backup artifacts
+airlock_v4_backups/
+airlock_v4/
+
+# Airlock v5 installer and private local backups
+airlock_v5_backups/
+airlock_v5/
+
+# Airlock v6 local installer and unpublished evidence
+airlock_v6/
+airlock_v6_backups/
+backend/airlock/live_research_v6.pending.json
