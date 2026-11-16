@@ -2,7 +2,7 @@
 
 **A hackathon security research prototype**. Airlock asks *whether the human could see the text* before an AI agent reads it. It uses real Chromium + Playwright to identify hidden DOM content, then makes an allow / sanitize / block decision. Agent Lab demonstrates an LLM with **fake email tools** and a deterministic authorization gate.
 
-> **Hackathon disclosure:** This starter project was substantially AI-assisted. Participants must inspect, modify, test, understand, and disclose AI contributions in their submission in accordance with IceHacks rules.
+> **Hackathon disclosure:** This project was AI-assisted. Participants must inspect, modify, test, understand, and disclose AI contributions in their submission in accordance with IceHacks rules.
 
 ![Project status](https://img.shields.io/badge/status-hackathon%20prototype-2fd3ba)
 
